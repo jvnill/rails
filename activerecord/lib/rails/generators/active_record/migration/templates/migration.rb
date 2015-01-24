@@ -4,6 +4,9 @@ class <%= migration_class_name %> < ActiveRecord::Migration
 <% attributes.each do |attribute| -%>
   <%- if attribute.reference? -%>
     add_reference :<%= table_name %>, :<%= attribute.name %><%= attribute.inject_options %>
+    <%- unless attribute.polymorphic? -%>
+    add_foreign_key :<%= table_name %>, :<%= attribute.name.pluralize %>
+    <%- end -%>
   <%- elsif attribute.token? -%>
     add_column :<%= table_name %>, :<%= attribute.name %>, :string<%= attribute.inject_options %>
     add_index :<%= table_name %>, :<%= attribute.index_name %><%= attribute.inject_index_options %>, unique: true
@@ -28,7 +31,20 @@ class <%= migration_class_name %> < ActiveRecord::Migration
 <% attributes.each do |attribute| -%>
 <%- if migration_action -%>
   <%- if attribute.reference? -%>
-    remove_reference :<%= table_name %>, :<%= attribute.name %><%= attribute.inject_options %>
+    reversible do |dir|
+      dir.up do
+        <%- unless attribute.polymorphic? -%>
+        remove_foreign_key :<%= table_name %>, :<%= attribute.name.pluralize %>
+        <%- end -%>
+        remove_reference :<%= table_name %>, :<%= attribute.name %><%= attribute.inject_options %>
+      end
+      dir.down do
+        add_reference :<%= table_name %>, :<%= attribute.name %><%= attribute.inject_options %>
+        <%- unless attribute.polymorphic? -%>
+        add_foreign_key :<%= table_name %>, :<%= attribute.name.pluralize %>
+        <%- end -%>
+      end
+    end
   <%- else -%>
     <%- if attribute.has_index? -%>
     remove_index :<%= table_name %>, :<%= attribute.index_name %><%= attribute.inject_index_options %>
